@@ -13,8 +13,6 @@
 
 その後に、社会で生活していくうえで、遺伝的アルゴリズムの考え方をどのように生かすことができるのかということに関して、私の考えを説明します。
 
-- [遺伝的アルゴリズムに関する記事](#遺伝的アルゴリズムに関する記事)
-  - [はじめに](#はじめに)
   - [遺伝的アルゴリズムの説明](#遺伝的アルゴリズムの説明)
     - [遺伝的アルゴリズムの手順](#遺伝的アルゴリズムの手順)
       - [1 初期世代の生成](#1-初期世代の生成)
@@ -141,7 +139,11 @@ https://uec.repo.nii.ac.jp/record/2158/files/1151002.pdf)
 
 - 局所解と最適解の例(最小値を求める場合にx=3で局所解、x=-2で最適解をとる)
 <figure>
+<<<<<<< HEAD
   <img src="min_local.png" width="30%" alt="Elephant at sunset" />
+=======
+  <img src="image-2.png" width="30%" alt="Elephant at sunset" />
+>>>>>>> origin/main
   <figcaption></figcaption>
 </figure>
 
@@ -285,6 +287,11 @@ https://core.ac.uk/download/pdf/59264983.pdf
 
 - システムトレードへの応用例
   file:///C:/Users/%E3%83%95%E3%82%A9%E3%83%BC%E3%83%A0%E3%82%BA%E6%AB%9B%E7%94%B0%E5%8B%87%E4%BB%8B/Downloads/1151002%20(2).pdf
+<<<<<<< HEAD
+=======
+ --> 
+
+>>>>>>> origin/main
  
 
 - オプション価格のプライシングへの適用
@@ -299,3 +306,7 @@ https://core.ac.uk/download/pdf/59264983.pdf
 - https://uu.diva-portal.org/smash/get/diva2:729886/FULLTEXT01.pdf
  --> 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
