@@ -255,6 +255,65 @@ https://uec.repo.nii.ac.jp/record/2158/files/1151002.pdf) -->
 - 現在の状況への適応
 
 
+```
+import numpy as np
+
+# ヨーロピアンオプションの価格を計算する関数
+def european_option_price(S, K, r, sigma, T):
+    d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+    d2 = d1 - sigma * np.sqrt(T)
+    call_price = S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
+    return call_price
+
+# 適応度関数：予測価格と実際の価格の差の二乗の合計を最小化する
+def fitness_function(predicted_price, actual_price):
+    return np.sum((predicted_price - actual_price) ** 2)
+
+# 遺伝的アルゴリズムで最適な価格を見つける関数
+def genetic_algorithm(S, K, r, sigma, T, actual_price, population_size=100, generations=100, mutation_rate=0.1):
+    # 初期個体群の生成
+    population = np.random.uniform(80, 120, size=(population_size,))
+    
+    for generation in range(generations):
+        # 適応度の計算
+        predicted_prices = european_option_price(S, K, r, sigma, T, population)
+        fitness = fitness_function(predicted_prices, actual_price)
+        
+        # 選択：適応度が高い個体を残す
+        selected_indices = np.argsort(fitness)[:population_size // 2]
+        selected_population = population[selected_indices]
+        
+        # 交叉：選択された個体同士を組み合わせて新しい個体を生成
+        offspring = np.array([np.random.choice(selected_population, 2) for _ in range(population_size - len(selected_population))])
+        offspring = np.mean(offspring, axis=1)
+        
+        # 突然変異：ランダムに個体を変異させる
+        mutation_indices = np.random.choice(range(population_size), size=int(mutation_rate * population_size), replace=False)
+        population[mutation_indices] = np.random.uniform(80, 120, size=(len(mutation_indices),))
+        
+        # 次世代の生成
+        population = np.concatenate((selected_population, offspring))
+    
+    # 最適解の選択
+    best_index = np.argmin(fitness)
+    best_price = population[best_index]
+    
+    return best_price
+
+# パラメータの設定
+S = 100  # 現在の株価
+K = 105  # ストライク価格
+r = 0.05  # 利子率
+sigma = 0.2  # ボラティリティ
+T = 1  # オプションの満期
+
+# 実際の価格
+actual_price = european_option_price(S, K, r, sigma, T)
+
+# 遺伝的アルゴリズムでの最適な価格の計算
+optimal_price = genetic_algorithm(S, K, r, sigma, T, actual_price)
+print("最適な価格:", optimal_price)
+```
 
 
 <!-- ### メモ
