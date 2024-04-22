@@ -255,64 +255,112 @@ https://uec.repo.nii.ac.jp/record/2158/files/1151002.pdf) -->
 - 現在の状況への適応
 
 
+### 参考　ボラティリティのキャリブレーションへの適用例
+最後に、BSモデルでのボラティリティのキャリブレーションへの遺伝的アルゴズムの適用例と実装を説明します。
+
+まず、BSモデルについて説明します。
+株価$S_t$は次のような方程式に従うとします
+$$d S_t = r S_t dt + \sigma S_t dW_t \\
+(r: \text{(リスクフリー)金利}, \sigma: \text{株価のボラティリティ})
+$$
+
+ここで、$r$, $\sigma$はそれぞれ定数とします。
+
+このとき、満期$T$でのオプション価格は次の式で表されます。(以下、この式をBS式とよびます)
+
+$$C^{BS} = S_0 N(d_1) - K e^{-rT} N(d_2)$$
+ただし、
+$$K: \text{満期$T$での行使価格}$$
+$$N(x) = \int_{-\infty}^x \frac{1}{\sqrt{2\pi}} \exp{(-\frac{1}{2}x^2)}dx$$
+$$d_1 = \frac{\log{\frac{S_0}{K}} + (r + \frac{\sigma^2}{2}T)}{\sigma \sqrt{T}}$$
+
+$$d_2 = d_1 - \sigma \sqrt{T}$$
+
+目的関数を次のように設定します。
+$$ \sum_{i=1}^N (C_i^{\text{BS}}(\sigma) - C_i^{(*)})^2\quad C_i^{\text{BS}}(\sigma):  $$
+
+<!-- モデルのパラメータ$\sigma$を以下の手順で遺伝的アルゴリズムによって求めます。
+
+1. -->
+
 ```
 import numpy as np
+from scipy.stats import norm
 
-# ヨーロピアンオプションの価格を計算する関数
+#BS式
 def european_option_price(S, K, r, sigma, T):
     d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
     d2 = d1 - sigma * np.sqrt(T)
     call_price = S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
     return call_price
 
-# 適応度関数：予測価格と実際の価格の差の二乗の合計を最小化する
-def fitness_function(predicted_price, actual_price):
-    return np.sum((predicted_price - actual_price) ** 2)
+# 最小化する対象の目的関数：
+#予測価格と実際の価格のabsolute error
+def absolute_error_function(predicted_price, actual_price):
+    return np.abs(predicted_price - actual_price)
+    #return np.sum((predicted_price - actual_price) ** 2)
 
 # 遺伝的アルゴリズムで最適な価格を見つける関数
-def genetic_algorithm(S, K, r, sigma, T, actual_price, population_size=100, generations=100, mutation_rate=0.1):
+def genetic_algorithm(S, K, r, sigma, T, actual_price, population_size=155, generations=100, crossover_rate = 0.1):
     # 初期個体群の生成
-    population = np.random.uniform(80, 120, size=(population_size,))
+    population = np.random.uniform(0, 1, size=(population_size,))
     
     for generation in range(generations):
         # 適応度の計算
-        predicted_prices = european_option_price(S, K, r, sigma, T, population)
-        fitness = fitness_function(predicted_prices, actual_price)
+        predicted_prices = european_option_price(S, K, r, population, T)
+        print("predicted_prices:", predicted_prices)
+        absolute_error_list = absolute_error_function(predicted_prices, actual_price)
         
-        # 選択：適応度が高い個体を残す
-        selected_indices = np.argsort(fitness)[:population_size // 2]
+        # 選択：適応度が高い(誤差が小さい)個体を残す
+        #print(absolute_error_list)
+        select_num = int(population_size*(1-crossover_rate))
+        #print("select_num:", select_num)
+        selected_indices = np.argsort(absolute_error_list)[:select_num]
+        #print("selected_indices_len:", len(selected_indices))
         selected_population = population[selected_indices]
         
         # 交叉：選択された個体同士を組み合わせて新しい個体を生成
-        offspring = np.array([np.random.choice(selected_population, 2) for _ in range(population_size - len(selected_population))])
+        #例: population_size=100,選択された個体の数:30
+        #このとき、残りの70個は選択された30個体の中からランダムに2個体を選んで平均を取る
+        crossover_num = int(population_size*crossover_rate)
+        offspring = np.array([np.random.choice(selected_population, 2) for _ in range(crossover_num)])
         offspring = np.mean(offspring, axis=1)
-        
         # 突然変異：ランダムに個体を変異させる
-        mutation_indices = np.random.choice(range(population_size), size=int(mutation_rate * population_size), replace=False)
-        population[mutation_indices] = np.random.uniform(80, 120, size=(len(mutation_indices),))
-        
+        #(次世代の生成と順番を逆にした)
+        #mutation_indices = np.random.choice(range(population_size), size=int(mutation_rate * population_size), replace=False)
+        #mutation_list = np.take(population, mutation_indices) 
+        #= np.random.uniform(0, 1, size=(len(mutation_indices),))
+        mutation_num = population_size - select_num - crossover_num #残りを突然変異に
+        mutation_list = np.random.uniform(0, 1, size=(mutation_num,))
+        print("選択された個体数:", len(selected_population), "個")
+        print("交叉により生まれた個体数:", len(offspring), "個")
+        print("突然変異により生まれた個体数:", len(mutation_list), "個")
+
         # 次世代の生成
-        population = np.concatenate((selected_population, offspring))
+        population = np.concatenate((selected_population, offspring, mutation_list))
+        
+        
+    last_predicted_price = european_option_price(S, K, r, population, T)
+    last_error = absolute_error_function(last_predicted_price, actual_price)
     
     # 最適解の選択
-    best_index = np.argmin(fitness)
-    best_price = population[best_index]
-    
-    return best_price
+    last_best_index = np.argmin(last_error)
+    last_best_volatility = population[last_best_index]
+    return last_best_volatility
 
 # パラメータの設定
 S = 100  # 現在の株価
-K = 105  # ストライク価格
+K = 105  # 行使価格
 r = 0.05  # 利子率
-sigma = 0.2  # ボラティリティ
+sigma = 0.3 # ボラティリティ
 T = 1  # オプションの満期
 
 # 実際の価格
 actual_price = european_option_price(S, K, r, sigma, T)
 
 # 遺伝的アルゴリズムでの最適な価格の計算
-optimal_price = genetic_algorithm(S, K, r, sigma, T, actual_price)
-print("最適な価格:", optimal_price)
+genetic_volatility = genetic_algorithm(S, K, r, sigma, T, actual_price)
+print("GAで求めたボラティリティ:", genetic_volatility)
 ```
 
 
