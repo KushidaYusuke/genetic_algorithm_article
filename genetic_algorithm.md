@@ -185,7 +185,7 @@ https://uec.repo.nii.ac.jp/record/2158/files/1151002.pdf) -->
 
 - 局所解と最適解の例(最小値を求める場合にx=3で局所解、x=-2で最適解をとる)
 <figure>
-  <img src="min_local.png" width="80%" alt="graph" />
+  <img src="min_local.png" width="70%" alt="graph" />
   <figcaption></figcaption>
 </figure>
 
@@ -269,7 +269,7 @@ https://uec.repo.nii.ac.jp/record/2158/files/1151002.pdf) -->
 ALGORITHM](https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://journal.uii.ac.id/Snati/article/download/1511/1292/1351&ved=2ahUKEwi03O3ZnNeFAxW-Z_UHHbO0AMwQFnoECDsQAQ&usg=AOvVaw0lky-5F9RffBQ9jufIcYRq))
 
 まず、BSモデルについて説明します。
-株価S_tは次のような方程式に従うとします
+時点tでの株価S_tは次のような方程式に従うとします:
 
 ![alt text](bs_1.png)
 
