@@ -36,6 +36,8 @@
       - [異なるバックグラウンドを持つ人との交流の重要性](#異なるバックグラウンドを持つ人との交流の重要性)
       - [状況の変化に対応することの重要性](#状況の変化に対応することの重要性)
   - [まとめ](#まとめ)
+  - [参考　ボラティリティのキャリブレーションへの適用例](#参考ボラティリティのキャリブレーションへの適用例)
+    - [実装例](#実装例)
 
 
 ## 遺伝的アルゴリズムの説明
@@ -255,7 +257,7 @@ https://uec.repo.nii.ac.jp/record/2158/files/1151002.pdf) -->
 - 現在の状況への適応
 
 
-### 参考　ボラティリティのキャリブレーションへの適用例
+## 参考　ボラティリティのキャリブレーションへの適用例
 最後に、BSモデルでのボラティリティのキャリブレーションへの遺伝的アルゴズムの適用例と実装を説明します。
 
 まず、BSモデルについて説明します。
@@ -276,13 +278,29 @@ $$d_1 = \frac{\log{\frac{S_0}{K}} + (r + \frac{\sigma^2}{2}T)}{\sigma \sqrt{T}}$
 
 $$d_2 = d_1 - \sigma \sqrt{T}$$
 
-目的関数を次のように設定します。
-$$ \sum_{i=1}^N (C_i^{\text{BS}}(\sigma) - C_i^{(*)})^2\quad C_i^{\text{BS}}(\sigma):  $$
+最小化する目的関数を次のように設定します。
+$$ f(\sigma) = |C_i^{\text{BS}}(\sigma) - C_i^{(*)}|\\
+C_i^{\text{BS}}(\sigma): \text{ボラティリティが$\sigma$の場合のBS式によるオプション価格} \\
+C_i^{(*)}: \text{オプションの市場価格}$$
+
+次のアルゴリズムにより、モデルに使用するボラティリティを求めます
+
+世代数を$g$, 各世代での個体数を$n$とする
+1. 初期母集団$\sigma^{0} = [\sigma_1^{0}, \sigma_2^{0}, \cdots, \sigma_n^{0}]$をランダムに選ぶ
+   
+以下の操作により母集団$\sigma^{i-1}$から母集団$\sigma^i$を作り出す操作を$i = 0, 1, \cdots, (g-1)$に渡って繰り返す:
+
+2. 母集団$\sigma^{i-1}$の各要素$\sigma_l^{i-1}\,(l = 1,2,\cdots, n)$について誤差関数$f(\sigma_l^{i-1})$を計算して、誤差の小さいものから順に一定数を選択する。
+
+3. 選択した個体の中から一定の割合で、交叉、突然変異を行う。選択、交叉、突然変異をした個体を次の世代$\sigma^i$として、2に戻る。
+
+4.2~3の操作を繰り返して、最終的に得られた母集団$\tau^g$
 
 <!-- モデルのパラメータ$\sigma$を以下の手順で遺伝的アルゴリズムによって求めます。
 
 1. -->
 
+### 実装例
 ```
 import numpy as np
 from scipy.stats import norm
@@ -298,44 +316,31 @@ def european_option_price(S, K, r, sigma, T):
 #予測価格と実際の価格のabsolute error
 def absolute_error_function(predicted_price, actual_price):
     return np.abs(predicted_price - actual_price)
-    #return np.sum((predicted_price - actual_price) ** 2)
 
 # 遺伝的アルゴリズムで最適な価格を見つける関数
-def genetic_algorithm(S, K, r, sigma, T, actual_price, population_size=155, generations=100, crossover_rate = 0.1):
+def genetic_algorithm(S, K, r, T, actual_price, population_size=1000, generations=1000, crossover_rate = 0.1, mutation_rate = 0.05):
     # 初期個体群の生成
     population = np.random.uniform(0, 1, size=(population_size,))
     
     for generation in range(generations):
-        # 適応度の計算
+        # 市場価格との絶対誤差が小さい⇔適応度が大きい　と定める
         predicted_prices = european_option_price(S, K, r, population, T)
-        print("predicted_prices:", predicted_prices)
         absolute_error_list = absolute_error_function(predicted_prices, actual_price)
         
+        # 選択、交叉、突然変異に用いる個体数
+        crossover_num = int(population_size*crossover_rate)
+        mutation_num = int(population_size*mutation_rate)
+        select_num = population_size - crossover_num - mutation_num 
+
         # 選択：適応度が高い(誤差が小さい)個体を残す
-        #print(absolute_error_list)
-        select_num = int(population_size*(1-crossover_rate))
-        #print("select_num:", select_num)
         selected_indices = np.argsort(absolute_error_list)[:select_num]
-        #print("selected_indices_len:", len(selected_indices))
         selected_population = population[selected_indices]
         
-        # 交叉：選択された個体同士を組み合わせて新しい個体を生成
-        #例: population_size=100,選択された個体の数:30
-        #このとき、残りの70個は選択された30個体の中からランダムに2個体を選んで平均を取る
-        crossover_num = int(population_size*crossover_rate)
+        # 交叉：選択された個体同士を組み合わせて新しい個体を生成  
         offspring = np.array([np.random.choice(selected_population, 2) for _ in range(crossover_num)])
-        offspring = np.mean(offspring, axis=1)
+        offspring = np.mean(offspring, axis=1) #2つの親の平均をとって子を作成
         # 突然変異：ランダムに個体を変異させる
-        #(次世代の生成と順番を逆にした)
-        #mutation_indices = np.random.choice(range(population_size), size=int(mutation_rate * population_size), replace=False)
-        #mutation_list = np.take(population, mutation_indices) 
-        #= np.random.uniform(0, 1, size=(len(mutation_indices),))
-        mutation_num = population_size - select_num - crossover_num #残りを突然変異に
         mutation_list = np.random.uniform(0, 1, size=(mutation_num,))
-        print("選択された個体数:", len(selected_population), "個")
-        print("交叉により生まれた個体数:", len(offspring), "個")
-        print("突然変異により生まれた個体数:", len(mutation_list), "個")
-
         # 次世代の生成
         population = np.concatenate((selected_population, offspring, mutation_list))
         
@@ -352,14 +357,14 @@ def genetic_algorithm(S, K, r, sigma, T, actual_price, population_size=155, gene
 S = 100  # 現在の株価
 K = 105  # 行使価格
 r = 0.05  # 利子率
-sigma = 0.3 # ボラティリティ
+true_sigma = 0.3 # ボラティリティ
 T = 1  # オプションの満期
 
-# 実際の価格
-actual_price = european_option_price(S, K, r, sigma, T)
+# 実際の価格(ここではsigma=0.3のもとでのBS価格を市場価格とする)
+actual_price = european_option_price(S, K, r, true_sigma, T)
 
-# 遺伝的アルゴリズムでの最適な価格の計算
-genetic_volatility = genetic_algorithm(S, K, r, sigma, T, actual_price)
+# 遺伝的アルゴリズムで求められたボラティリティの値
+genetic_volatility = genetic_algorithm(S, K, r, T, actual_price)
 print("GAで求めたボラティリティ:", genetic_volatility)
 ```
 
